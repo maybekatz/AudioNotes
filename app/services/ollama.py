@@ -6,7 +6,7 @@ from openai import OpenAI
 
 async def chat_with_ollama(messages: list[dict], callback=None):
     base_url = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434/v1')
-    model = os.getenv('OLLAMA_MODEL', 'qwen2:7b')
+    model = os.getenv('OLLAMA_MODEL', 'qwen2.5:14b')
     logger.debug(f"chat with ollama: {base_url}, model: {model}")
 
     client = OpenAI(
