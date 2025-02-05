@@ -21,7 +21,7 @@ services:
       - POSTGRES_HOST=pg
       # ollama配置
       - OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
-      - OLLAMA_MODEL=qwen2:7b
+      - OLLAMA_MODEL=qwen2.5:14b
       - OLLAMA_API_KEY=ollama
     depends_on:
       - pg
