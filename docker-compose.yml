@@ -23,6 +23,13 @@ services:
       - DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
       - DEEPSEEK_MODEL=deepseek-chat
       - DEEPSEEK_API_KEY=your_api_key_here  # 请替换为你的实际API密钥
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     depends_on:
       - pg
     extra_hosts:
