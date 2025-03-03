@@ -19,10 +19,10 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=audio_notes
       - POSTGRES_HOST=pg
-      # ollama配置
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
-      - OLLAMA_MODEL=qwen2.5:14b
-      - OLLAMA_API_KEY=ollama
+      # DeepSeek配置
+      - DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
+      - DEEPSEEK_MODEL=deepseek-chat
+      - DEEPSEEK_API_KEY=your_api_key_here  # 请替换为你的实际API密钥
     depends_on:
       - pg
     extra_hosts:
@@ -44,3 +44,4 @@ services:
       - ./postgresql:/var/lib/postgresql/data
 networks:
   audio_notes:
+Last edited just now
