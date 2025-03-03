@@ -51,4 +51,3 @@ services:
       - ./postgresql:/var/lib/postgresql/data
 networks:
   audio_notes:
-Last edited just now
