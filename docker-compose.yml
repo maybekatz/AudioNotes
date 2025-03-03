@@ -22,7 +22,7 @@ services:
       # DeepSeek配置
       - DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
       - DEEPSEEK_MODEL=deepseek-chat
-      - DEEPSEEK_API_KEY=sk-f04176837e1c4eaabf7c3f7515e1c969  # 请替换为你的实际API密钥
+      - DEEPSEEK_API_KEY=sk-1589aab9b9c54c4ea10e5f9af0744071  # 请替换为你的实际API密钥
     deploy:
       resources:
         reservations:
