@@ -2,9 +2,9 @@ import os
 from loguru import logger
 from openai import OpenAI
 
-async def chat_with_deepseek(messages: list[dict], callback=None):
-    base_url = os.getenv('OPENAI_BASE_URL', 'https://api.deepseek.com/v1')
-    model = os.getenv('OPENAI_MODEL', 'deepseek-chat')
+async def chat_with_OPENAI(messages: list[dict], callback=None):
+    base_url = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
+    model = os.getenv('OPENAI_MODEL', 'gpt-4o')
     api_key = os.getenv('OPENAI_API_KEY')
     
     if not api_key:
