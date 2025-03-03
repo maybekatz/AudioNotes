@@ -8,7 +8,7 @@ from chainlit.element import ElementBased
 from loguru import logger
 from app.services import data_layer
 from app.services.asr_funasr import funasr
-from app.services.deepseek import chat_with_deepseek  # 更改为新的deepseek服务
+from app.services.openai import chat_with_openai  # 更改为新的openai服务
 from app.utils import utils
 
 # load environment variables
