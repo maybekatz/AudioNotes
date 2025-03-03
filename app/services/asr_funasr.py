@@ -11,7 +11,7 @@ class FunASR:
             return
 
         logger.debug("funasr :: init model start")
-        self.__model = AutoModel(model="paraformer-zh",
+        self.__model = AutoModel(model="SenseVoiceSmall",
                                  vad_model="fsmn-vad",
                                  punc_model="ct-punc",
                                  spk_model="cam++",
