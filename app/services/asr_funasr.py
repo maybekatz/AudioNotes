@@ -6,19 +6,27 @@ class FunASR:
     def __init__(self):
         self.__model = None
 
-    def __init_model(self):
-        if self.__model:
-            return
+   def __init_model(self):
+    if self.__model:
+        return
 
+    try:
         logger.debug("funasr :: init model start")
         self.__model = AutoModel(model="SenseVoiceSmall",
-                                 vad_model="fsmn-vad",
-                                 punc_model="ct-punc",
-                                 spk_model="cam++",
-                                 log_level="error",
-                                 hub="ms"  # hub：表示模型仓库，ms为选择modelscope下载，hf为选择huggingface下载。
-                                 )
+                                vad_model="fsmn-vad",
+                                punc_model="ct-punc",
+                                spk_model="cam++",
+                                log_level="error",
+                                hub="ms",  # hub：表示模型仓库，ms为选择modelscope下载，hf为选择huggingface下载。
+                                device="gpu",  # 使用GPU设备
+                                # 可选：添加以下参数以进一步控制GPU使用
+                                # cuda_idx=0,  # 指定使用的CUDA设备索引
+                                # quantize=True  # 是否量化模型以节省GPU内存
+                                )
         logger.debug("funasr :: init model complete")
+    except Exception as e:
+        logger.error(f"funasr :: model initialization failed: {str(e)}")
+        raise
 
     def __convert_time_to_srt_format(self, time_in_milliseconds):
         hours = time_in_milliseconds // 3600000
