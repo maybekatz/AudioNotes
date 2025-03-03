@@ -194,7 +194,7 @@ async def chat():
         async def on_message(content):
             await msg.stream_token(content)
         
-        await chat_with_deepseek(messages, callback=on_message)  # 使用deepseek服务
+        await chat_with_OPENAI(messages, callback=on_message)  # 使用OPENAI服务
         await msg.send()
         
     except Exception as e:
