@@ -1,121 +1,121 @@
 from funasr import AutoModel
 from loguru import logger
-
+from typing import Optional, Union
+import threading
 
 class FunASR:
     def __init__(self):
-        self.__model = None
+        self._model_lock = threading.Lock()  # 线程安全锁
+        self._model: Optional[AutoModel] = None
 
-   def __init_model(self):
-    if self.__model:
-        return
+    def _initialize_model(self):
+        if self._model is not None:
+            return
 
-    try:
-        logger.debug("funasr :: init model start")
-        self.__model = AutoModel(model="SenseVoiceSmall",
-                                vad_model="fsmn-vad",
-                                punc_model="ct-punc",
-                                spk_model="cam++",
-                                log_level="error",
-                                hub="ms",  # hub：表示模型仓库，ms为选择modelscope下载，hf为选择huggingface下载。
-                                device="gpu",  # 使用GPU设备
-                                # 可选：添加以下参数以进一步控制GPU使用
-                                # cuda_idx=0,  # 指定使用的CUDA设备索引
-                                # quantize=True  # 是否量化模型以节省GPU内存
-                                )
-        logger.debug("funasr :: init model complete")
-    except Exception as e:
-        logger.error(f"funasr :: model initialization failed: {str(e)}")
-        raise
+        with self._model_lock:  # 加锁防止并发初始化
+            if self._model is None:  # 双重检查锁定
+                try:
+                    logger.info("Initializing FunASR model...")
+                    self._model = AutoModel(
+                        model="SenseVoiceSmall",
+                        vad_model="fsmn-vad",
+                        punc_model="ct-punc",
+                        spk_model="cam++",
+                        log_level="error",
+                        hub="ms",
+                        device="gpu",
+                        # 新增优化参数
+                        vad_kwargs={"max_single_segment_time": 60000},  # 60秒分段限制
+                        punc_kwargs={"period": 5}  # 每5秒添加标点
+                    )
+                    logger.success("FunASR model initialized")
+                except Exception as e:
+                    logger.critical(f"Model initialization failed: {str(e)}")
+                    raise RuntimeError("FunASR initialization failed") from e
 
-    def __convert_time_to_srt_format(self, time_in_milliseconds):
-        hours = time_in_milliseconds // 3600000
-        time_in_milliseconds %= 3600000
-        minutes = time_in_milliseconds // 60000
-        time_in_milliseconds %= 60000
-        seconds = time_in_milliseconds // 1000
-        time_in_milliseconds %= 1000
+    def _convert_ms_to_srt_time(self, milliseconds: int) -> str:
+        """将毫秒转换为SRT时间格式 (HH:MM:SS,mmm)"""
+        hours, rem = divmod(milliseconds, 3600000)
+        minutes, rem = divmod(rem, 60000)
+        seconds, ms = divmod(rem, 1000)
+        return f"{hours:02}:{minutes:02}:{seconds:02},{ms:03}"
 
-        return f"{hours:02}:{minutes:02}:{seconds:02},{time_in_milliseconds:03}"
-
-    def __text_to_srt(self, idx, speaker_id, msg, start_microseconds, end_microseconds) -> str:
-        start_time = self.__convert_time_to_srt_format(start_microseconds)
-        end_time = self.__convert_time_to_srt_format(end_microseconds)
-
-        msg = f"{msg}"
-        srt = """%d
-%s --> %s
-%s
-            """ % (
-            idx,
-            start_time,
-            end_time,
-            msg,
+    def _generate_srt_segment(self, 
+                            index: int, 
+                            start_ms: int, 
+                            end_ms: int, 
+                            text: str, 
+                            speaker: Optional[str] = None) -> str:
+        """生成SRT片段"""
+        start_time = self._convert_ms_to_srt_time(start_ms)
+        end_time = self._convert_ms_to_srt_time(end_ms)
+        
+        speaker_tag = f"[Speaker {speaker}] " if speaker else ""
+        return (
+            f"{index}\n"
+            f"{start_time} --> {end_time}\n"
+            f"{speaker_tag}{text.strip()}\n\n"
         )
-        return srt
 
-    def transcribe(self, audio_file: str, output_type: str = "txt"):
-        self.__init_model()
-        logger.info(f"funasr :: start transcribe audio file: {audio_file}")
+    def transcribe(self, 
+                  audio_path: str, 
+                  output_format: str = "txt",
+                  max_retries: int = 3) -> Union[str, None]:
+        """执行语音转写
+        
+        Args:
+            audio_path: 音频文件路径
+            output_format: 输出格式 (txt/srt)
+            max_retries: 最大重试次数
+            
+        Returns:
+            转写结果字符串或None（失败时）
+        """
+        self._initialize_model()
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Processing audio: {audio_path} (attempt {attempt+1})")
+                
+                # 执行转写
+                result = self._model.generate(
+                    input=audio_path,
+                    batch_size_s=300,
+                    # 新增流控参数
+                    chunk_size=2000,  # 优化长音频处理
+                    hotword="",  # 自定义热词
+                )
+                
+                if not result:
+                    logger.warning("Empty transcription result")
+                    return None
+                
+                # 处理不同输出格式
+                if output_format.lower() == "srt":
+                    srt_content = []
+                    sentences = result[0].get('sentence_info', [])
+                    
+                    for idx, sent in enumerate(sentences, start=1):
+                        segment = self._generate_srt_segment(
+                            index=idx,
+                            start_ms=sent['start'],
+                            end_ms=sent['end'],
+                            text=sent['text'],
+                            speaker=sent.get('spk')
+                        )
+                        srt_content.append(segment)
+                        
+                    return "".join(srt_content)
+                
+                # 默认返回纯文本
+                return result[0].get('text', '')
+                
+            except Exception as e:
+                logger.error(f"Transcription failed (attempt {attempt+1}): {str(e)}")
+                if attempt == max_retries - 1:
+                    raise
+                
+        return None
 
-        res = self.__model.generate(input=audio_file, batch_size_s=300)
-        text = res[0]['text']
-        logger.info(f"funasr :: complete transcribe audio file: {audio_file}")
-        if output_type == "srt":
-            sentences = res[0]['sentence_info']
-            subtitles = []
-
-            for idx, sentence in enumerate(sentences):
-                sub = self.__text_to_srt(idx, sentence['spk'], sentence['text'], sentence['start'], sentence['end'])
-                subtitles.append(sub)
-
-            return "\n".join(subtitles)
-        return text
-
-    # def transcribe(audio_file):
-    #     logger.info(f"funasr :: start transcribe audio file: {audio_file}")
-    #
-    #     res = model.generate(input=audio_file, batch_size_s=300)
-    #     text = res[0]['text']
-    #     subtitle_file = f"{audio_file}.funasr.txt"
-    #     with open(subtitle_file, "w") as f:
-    #         f.write(text)
-    #
-    #     sentences = res[0]['sentence_info']
-    #     subtitles = []
-    #
-    #     for idx, sentence in enumerate(sentences):
-    #         sub = text_to_srt(idx, sentence['spk'], sentence['text'], sentence['start'], sentence['end'])
-    #         subtitles.append(sub)
-    #
-    #     subtitle_file = f"{audio_file}.funasr.srt"
-    #     with open(subtitle_file, "w") as f:
-    #         f.write("\n".join(subtitles))
-    #     logger.info(f"funasr :: complete transcribe audio file: {audio_file}")
-    #
-    # def transcribe_streaming(audio_file):
-    #     chunk_size = [0, 10, 5]  # [0, 10, 5] 600ms, [0, 8, 4] 480ms
-    #     encoder_chunk_look_back = 4  # number of chunks to lookback for encoder self-attention
-    #     decoder_chunk_look_back = 1  # number of encoder chunks to lookback for decoder cross-attention
-    #
-    #     model = AutoModel(model="paraformer-zh-streaming",
-    #                       # vad_model="fsmn-vad",
-    #                       # punc_model="ct-punc",
-    #                       # spk_model="cam++",
-    #                       log_level="error", hub="ms")
-    #
-    #     speech, sample_rate = soundfile.read(audio_file)
-    #     chunk_stride = chunk_size[1] * 960  # 600ms
-    #
-    #     cache = {}
-    #     total_chunk_num = int(len(speech - 1) / chunk_stride + 1)
-    #     for i in range(total_chunk_num):
-    #         speech_chunk = speech[i * chunk_stride:(i + 1) * chunk_stride]
-    #         is_final = i == total_chunk_num - 1
-    #         res = model.generate(input=speech_chunk, cache=cache, is_final=is_final, chunk_size=chunk_size,
-    #                              encoder_chunk_look_back=encoder_chunk_look_back,
-    #                              decoder_chunk_look_back=decoder_chunk_look_back)
-    #         print(res)
-
-
+# 单例模式初始化
 funasr = FunASR()
