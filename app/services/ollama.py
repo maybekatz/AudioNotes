@@ -11,7 +11,7 @@ async def chat_with_deepseek(messages: list[dict], callback=None):
     if not api_key:
         raise ValueError("DEEPSEEK_API_KEY environment variable must be set")
     
-    logger.debug(f"chat with OPENAI: {base_url}, model: {model}")
+    logger.debug(f"chat with deepseek: {base_url}, model: {model}")
     
     client = OpenAI(
         base_url=base_url,
