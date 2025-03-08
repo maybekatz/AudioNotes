@@ -35,7 +35,7 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
   pg:
-    image: postgres:12.19-bullseye
+    image: 16.3-bookworm
     container_name: audio_notes_pg
     restart: always
     ports:
