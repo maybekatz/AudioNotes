@@ -23,19 +23,22 @@ services:
       - DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
       - DEEPSEEK_MODEL=deepseek-chat
       - DEEPSEEK_API_KEY=sk-38b1523bd5c34d8d84b77829921b569e
-    deploy:
+     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+              options:
+                memory: 14g
+                arch: compute_89
     depends_on:
       - pg
     extra_hosts:
       - 'host.docker.internal:host-gateway'
   pg:
-    image: 16.3-bookworm
+    image: postgres:16.3-bookworm
     container_name: audio_notes_pg
     restart: always
     ports:
