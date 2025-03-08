@@ -2,13 +2,14 @@ import os
 from loguru import logger
 from openai import OpenAI
 
-async def chat_with_OPENAI(messages: list[dict], callback=None):
-    base_url = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
-    model = os.getenv('OPENAI_MODEL', 'gpt-4o')
-    api_key = os.getenv('OPENAI_API_KEY')
+async def chat_with_deepseek(messages: list[dict], callback=None):
+    base_url = os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com/v1')
+    model = os.getenv('DEEPSEEK_MODEL', 'deepseek-chat')
+    api_key = os.getenv('DEEPSEEK_API_KEY')
+    logger.debug(f"chat with deepseek: {base_url}, model: {model}")
     
     if not api_key:
-        raise ValueError("OPENAI_API_KEY environment variable is required")
+        raise ValueError("DEEPSEEK_API_KEY environment variable must be set")
     
     logger.debug(f"chat with OPENAI: {base_url}, model: {model}")
     
