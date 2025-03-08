@@ -1,29 +1,39 @@
-services:
-  webui:
-    image: harryliu888/audio-notes
-    container_name: audio_notes_webui
-    ports:
-      - 15433:15433
-    volumes:
-      - ./modelscope:/root/.cache/modelscope
-      - ./storage:/app/storage
-    restart: always
-    networks:
-      - audio_notes
-    environment:
-      # 登录账号
-      - USERNAME=admin
-      - PASSWORD=admin
-      # 数据库配置(需要与下面pg服务的配置一致)
-      - POSTGRES_USER=username
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=audio_notes
-      - POSTGRES_HOST=pg
-      # deepseek配置
+version: '3.8'
+
+x-common: &common
+  networks:
+    audio_notes_net:
+      driver: bridge
+      internal: true
+# deepseek配置
       - DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
       - DEEPSEEK_MODEL=deepseek-chat
       - DEEPSEEK_API_KEY=sk-38b1523bd5c34d8d84b77829921b569e
-     deploy:
+
+
+services:
+  webui:
+    image: harryliu888/audio-notes:2.1.0
+    container_name: audio_notes_webui
+    restart: unless-stopped
+    privileged: true  # 启用硬件加速
+    ports:
+      - "15433:15433"
+    volumes:
+      - modelscope_data:/root/.cache/modelscope
+      - app_storage:/app/storage
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+      - DEEPSEEK_MODEL=deepseek-chat-1.8k
+    networks:
+      - audio_notes_net
+    secrets:
+      - source: deepseek_api_key
+        target: /run/secrets/deepseek_key
+      - source: db_credentials
+        target: /run/secrets/db_creds
+    deploy:
       resources:
         reservations:
           devices:
@@ -33,24 +43,27 @@ services:
               options:
                 memory: 14g
                 arch: compute_89
-    depends_on:
-      - pg
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
+
   pg:
     image: postgres:16.3-bookworm
     container_name: audio_notes_pg
-    restart: always
-    ports:
-      - 15432:5432
+    restart: unless-stopped
     networks:
-      - audio_notes
-    environment:
-      # 这里的配置只有首次运行生效。修改后，重启镜像是不会生效的。需要把持久化数据删除再重启，才有效果
-      - POSTGRES_USER=username
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=audio_notes
+      - audio_notes_net
     volumes:
-      - ./postgresql:/var/lib/postgresql/data
-networks:
-  audio_notes:
+      - pg_data:/var/lib/postgresql/data
+    secrets:
+      - source: db_credentials
+        target: /run/secrets/db_creds
+    environment:
+      - POSTGRES_USER_FILE=/run/secrets/db_creds
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_creds
+      - POSTGRES_DB=audio_prod
+
+volumes:
+  modelscope_data:
+  app_storage:
+  pg_data:
+
+ 
+
